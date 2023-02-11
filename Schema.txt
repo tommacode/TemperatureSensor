@@ -1,0 +1,14 @@
+create table dailyAverage(
+    Date DATE,
+    Average FLOAT
+);
+
+create table hourlyAverage(
+    Time DATETIME,
+    Average FLOAT
+);
+
+create table rawData(
+    Time DATETIME,
+    Temperature FLOAT
+);

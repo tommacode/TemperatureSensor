@@ -1,0 +1,96 @@
+const dotenv = require("dotenv");
+dotenv.config();
+
+const mysql = require("mysql2");
+
+const pool = mysql
+  .createPool({
+    connectionLimit: 10,
+    host: process.env.DB_IP,
+    user: process.env.DB_User,
+    password: process.env.DB_Pass,
+    database: process.env.DB_Name,
+  })
+  .promise();
+
+async function Main() {
+  let Temperature = await GetTemperature();
+  let DateVar = new Date();
+  //Make date only mysql date format
+  let DateTime = DateVar.toISOString().slice(0, 19).replace("T", " ");
+
+  await pool.query("INSERT INTO RawData (Time, Temperature) VALUES (?, ?)", [
+    DateTime,
+    Temperature,
+  ]);
+  console.log("Time: " + DateTime + " Temperature: " + Temperature);
+  //Check if five minutes ago is in the same hour as now
+  let xMinutesAgo = new Date(DateVar.getTime() - 60 * 1000);
+  if (DateVar.getHours() !== xMinutesAgo.getHours()) {
+    console.log("5 minutes ago was in the same hour as now");
+    //Get all the data from the last hour
+    let HourAgo = new Date(DateVar.getTime() - 60 * 60 * 1000);
+    let HourAgoDateTime = HourAgo.toISOString().slice(0, 19).replace("T", " ");
+    let [data] = await pool.query("SELECT * FROM RawData WHERE Time > ?", [
+      HourAgoDateTime,
+    ]);
+    //calculate the average
+    let Average = 0;
+    for (let i = 0; i < data.length; i++) {
+      Average += data[i]["Temperature"];
+    }
+    Average = Average / data.length;
+    //Round to 1 decimal place
+    Average = Math.round(Average * 10) / 10;
+    console.log(Average);
+    //Write to the hourlyAverage table
+    await pool.query(
+      "INSERT INTO HourlyAverage (Time, Average) VALUES (?, ?)",
+      [DateTime, Average]
+    );
+  }
+  //Check if five minutes ago is in the same day as now
+  if (DateVar.getDate() !== xMinutesAgo.getDate()) {
+    console.log("5 minutes ago was not in the same day as now");
+    //Get all the data from the last day
+    let DayAgo = new Date(DateVar.getTime() - 24 * 60 * 60 * 1000);
+    let DayAgoDateTime = DayAgo.toISOString().slice(0, 19).replace("T", " ");
+    let [data] = await pool.query("SELECT * FROM RawData WHERE Time > ?", [
+      DayAgoDateTime,
+    ]);
+    //calculate the average
+    let Average = 0;
+    for (let i = 0; i < data.length; i++) {
+      Average += data[i]["Temperature"];
+    }
+    Average = Average / data.length;
+    //Round to 1 decimal place
+    Average = Math.round(Average * 10) / 10;
+    console.log(Average);
+    //Write to the dailyAverage table
+    await pool.query("INSERT INTO dailyAverage (Date, Average) VALUES (?, ?)", [
+      DateTime,
+      Average,
+    ]);
+  }
+  //exit the process
+}
+
+async function GetTemperature() {
+  response = await fetch(process.env.APIEndpoint);
+  let Temperature = await response.json();
+  //Round to 1 decimal place
+  Temperature["Temperature"] = Math.round(Temperature["Temperature"] * 10) / 10;
+  console.log(Temperature["Temperature"]);
+  return Temperature["Temperature"];
+}
+
+async function Runner() {
+  while (true) {
+    Main();
+    //wait 1 minutes
+    await new Promise((r) => setTimeout(r, 60 * 1000));
+  }
+}
+
+Runner();
