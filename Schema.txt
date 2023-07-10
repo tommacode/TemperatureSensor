@@ -12,3 +12,28 @@ create table rawData(
     Time DATETIME,
     Temperature FLOAT
 );
+
+create table realTimeOut(
+    ID INT PRIMARY KEY AUTO_INCREMENT,
+    Temperature FLOAT
+);
+
+create table dailyAverageOut(
+    Date DATE,
+    Average FLOAT
+);
+
+create table hourlyAverageOut(
+    Time DATETIME,
+    Average FLOAT
+);
+
+create table rawDataOut(
+    Time DATETIME,
+    Temperature FLOAT
+);
+
+create table realTimeOut(
+    ID INT PRIMARY KEY AUTO_INCREMENT,
+    Temperature FLOAT
+);
